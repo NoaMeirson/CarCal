@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CarCal – Vehicle Damage Analysis</title>
+
+  <!-- CSS: link (לא script) -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand__logo" src="assets/calcar-logo.png" alt="Calcar logo" />
+      <div class="brand__text">
+        <div class="brand__title">calcar</div>
+        <div class="brand__subtitle">Damage detection • localization • part assignment</div>
+      </div>
+    </div>
+
+    <div class="topbar__right">
+      <span class="pill" id="apiStatus">API: unknown</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- SCREEN 1: Upload (FR-1, FR-2) -->
+    <section class="card">
+      <div class="card__head">
+        <h1>Upload inspection case</h1>
+        <p class="muted">
+          Upload one or more vehicle images (batch). Each upload represents a single inspection case.
+        </p>
+      </div>
+
+      <form id="caseForm" class="form">
+        <div class="grid">
+          <label class="field">
+            <span>Case ID (optional)</span>
+            <input id="caseId" type="text" placeholder="e.g., CC-2026-001" />
+          </label>
+
+          <label class="field">
+            <span>Assessor (optional)</span>
+            <input id="assessor" type="text" placeholder="e.g., Harel Levi" />
+          </label>
+
+          <label class="field">
+            <span>Notes (optional)</span>
+            <input id="notes" type="text" placeholder="Short note..." />
+          </label>
+
+          <label class="field">
+            <span>Priority</span>
+            <select id="priority">
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Images (1–10)</span>
+          <input id="images" type="file" accept="image/*" multiple required />
+          <small class="muted">
+            Supported: JPG/PNG. Batch upload is required by spec.
+          </small>
+        </label>
+
+        <div id="preview" class="preview" aria-label="Selected images preview"></div>
+
+        <div class="actions">
+          <button type="submit" id="analyzeBtn">Analyze</button>
+          <button type="button" class="secondary" id="resetBtn">Reset</button>
+        </div>
+
+        <div class="status">
+          <div class="spinner" id="spinner" hidden></div>
+          <div id="statusText" class="muted">Waiting for upload…</div>
+        </div>
+      </form>
+    </section>
+
+    <!-- SCREEN 2: Results (damage types + locations + part assignment) -->
+    <section class="card">
+      <div class="card__head row">
+        <div>
+          <h2>Results</h2>
+          <p class="muted">
+            For each image: detected damages, bounding boxes, and assigned vehicle parts.
+          </p>
+        </div>
+
+        <div class="row__right">
+          <button class="secondary" id="exportCsvBtn" type="button" disabled>
+            Export CSV
+          </button>
+        </div>
+      </div>
+
+      <div id="results" class="results empty">
+        <p class="muted">No results yet.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span class="muted">CarCal client • HTML/CSS/JS</span>
+  </footer>
+
+  <!-- JS יבוא אחר כך; כרגע ביקשת HTML+CSS בלבד -->
+</body>
+</html>
