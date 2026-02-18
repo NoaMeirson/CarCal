@@ -1,0 +1,10 @@
+{
+  "request_id": "req_2026-02-18_0002",
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Invalid image payload: encoding=base64 requires data_base64",
+    "details": {
+      "field": "images[0].data_base64"
+    }
+  }
+}

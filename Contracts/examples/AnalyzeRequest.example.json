@@ -1,0 +1,25 @@
+{
+  "request_id": "req_2026-02-18_0001",
+  "images": [
+    {
+      "image_id": "img_1",
+      "filename": "accident_01.jpg",
+      "mime_type": "image/jpeg",
+      "encoding": "base64",
+      "data_base64": "<BASE64_BYTES_HERE>",
+      "sha256": "<OPTIONAL_SHA256_HEX>"
+    }
+  ],
+  "preprocess": {
+    "target_format": "jpeg",
+    "resize_longest_side": 1280,
+    "keep_aspect_ratio": true,
+    "max_pixels": 8000000,
+    "normalize": false
+  },
+  "return_visual_overlays": true,
+  "client_meta": {
+    "app_version": "0.1.0",
+    "platform": "web"
+  }
+}

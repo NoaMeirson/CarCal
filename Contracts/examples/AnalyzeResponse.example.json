@@ -1,0 +1,74 @@
+{
+  "request_id": "req_2026-02-18_0001",
+  "analysis_id": "analysis_7f1f2c9e",
+  "status": "ok",
+  "results": [
+    {
+      "image_id": "img_1",
+      "width": 1280,
+      "height": 720,
+      "detections": [
+        {
+          "detection_id": "det_1",
+          "damage_class": "scratch",
+          "confidence": 0.91,
+          "bbox": {
+            "x_min": 420,
+            "y_min": 300,
+            "x_max": 740,
+            "y_max": 460,
+            "frame": "pixel"
+          },
+          "mask": null
+        }
+      ],
+      "parts": [
+        {
+          "part_id": "part_1",
+          "vehicle_part": "front_right_door",
+          "confidence": 0.88,
+          "mask": {
+            "polygon": {
+              "points": [
+                {
+                  "x": 350,
+                  "y": 200
+                },
+                {
+                  "x": 900,
+                  "y": 210
+                },
+                {
+                  "x": 880,
+                  "y": 650
+                },
+                {
+                  "x": 360,
+                  "y": 640
+                }
+              ]
+            },
+            "rle": null
+          }
+        }
+      ],
+      "associations": [
+        {
+          "detection_id": "det_1",
+          "part_id": "part_1",
+          "iou": 0.34,
+          "strategy": "iou_max"
+        }
+      ]
+    }
+  ],
+  "overlays": [
+    {
+      "image_id": "img_1",
+      "kind": "fusion_overlay",
+      "mime_type": "image/png",
+      "data_base64": "<BASE64_PNG_OVERLAY>"
+    }
+  ],
+  "warnings": []
+}

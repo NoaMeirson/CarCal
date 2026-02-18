@@ -1,0 +1,55 @@
+{
+  "$defs": {
+    "HealthStatus": {
+      "enum": [
+        "ok",
+        "degraded",
+        "down"
+      ],
+      "title": "HealthStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "status": {
+      "$ref": "#/$defs/HealthStatus"
+    },
+    "service": {
+      "enum": [
+        "client",
+        "api",
+        "engine"
+      ],
+      "title": "Service",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    },
+    "time_utc": {
+      "title": "Time Utc",
+      "type": "string"
+    },
+    "details": {
+      "anyOf": [
+        {
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Details"
+    }
+  },
+  "required": [
+    "status",
+    "service",
+    "version",
+    "time_utc"
+  ],
+  "title": "HealthResponse",
+  "type": "object"
+}

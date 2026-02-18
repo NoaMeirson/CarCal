@@ -1,0 +1,204 @@
+{
+  "$defs": {
+    "ImageEncoding": {
+      "enum": [
+        "base64",
+        "url"
+      ],
+      "title": "ImageEncoding",
+      "type": "string"
+    },
+    "ImageRef": {
+      "properties": {
+        "image_id": {
+          "description": "Client-generated id unique within the request.",
+          "title": "Image Id",
+          "type": "string"
+        },
+        "filename": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Filename"
+        },
+        "mime_type": {
+          "enum": [
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ],
+          "title": "Mime Type",
+          "type": "string"
+        },
+        "encoding": {
+          "$ref": "#/$defs/ImageEncoding"
+        },
+        "data_base64": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Base64 bytes (no data: prefix).",
+          "title": "Data Base64"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "format": "uri",
+              "maxLength": 2083,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hex sha256 of raw bytes (optional).",
+          "title": "Sha256"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        }
+      },
+      "required": [
+        "image_id",
+        "mime_type",
+        "encoding"
+      ],
+      "title": "ImageRef",
+      "type": "object"
+    },
+    "PreprocessConfig": {
+      "properties": {
+        "target_format": {
+          "default": "jpeg",
+          "enum": [
+            "jpeg",
+            "png",
+            "webp"
+          ],
+          "title": "Target Format",
+          "type": "string"
+        },
+        "resize_longest_side": {
+          "default": 1280,
+          "maximum": 4096,
+          "minimum": 64,
+          "title": "Resize Longest Side",
+          "type": "integer"
+        },
+        "keep_aspect_ratio": {
+          "default": true,
+          "title": "Keep Aspect Ratio",
+          "type": "boolean"
+        },
+        "max_pixels": {
+          "default": 8000000,
+          "minimum": 100000,
+          "title": "Max Pixels",
+          "type": "integer"
+        },
+        "normalize": {
+          "default": false,
+          "title": "Normalize",
+          "type": "boolean"
+        }
+      },
+      "title": "PreprocessConfig",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "request_id": {
+      "title": "Request Id",
+      "type": "string"
+    },
+    "images": {
+      "items": {
+        "$ref": "#/$defs/ImageRef"
+      },
+      "minItems": 1,
+      "title": "Images",
+      "type": "array"
+    },
+    "preprocess_applied": {
+      "$ref": "#/$defs/PreprocessConfig"
+    },
+    "model_versions": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Versions"
+    },
+    "iou_threshold": {
+      "default": 0.1,
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Iou Threshold",
+      "type": "number"
+    }
+  },
+  "required": [
+    "request_id",
+    "images",
+    "preprocess_applied"
+  ],
+  "title": "EngineAnalyzeRequest",
+  "type": "object"
+}
