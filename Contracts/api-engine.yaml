@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info:
+  title: API-Engine Contract
+  version: 1.0.0
+
+paths:
+  /models:
+    post:
+      summary: Run damage detection models
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EngineAnalyzeRequest'
+      responses:
+        '200':
+          description: Model inference result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngineAnalyzeResponse'
+         
+
+components:
+  schemas:
+
+    EngineAnalyzeRequest:
+      type: object
+      required:
+        - imageBase64
+      properties:
+        imageBase64:
+          type: string
+          description: Base64 encoded image
+
+    EngineAnalyzeResponse:
+      type: object
+      properties:
+        detections:
+          type: array
+          items:
+            type: object
+            properties:
+              damageType:
+                type: string
+              confidence:
+                type: number
+              bbox:
+                type: array
+                items:
+                  type: number

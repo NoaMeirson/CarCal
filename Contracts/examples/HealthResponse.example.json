@@ -1,9 +1,0 @@
-{
-  "status": "ok",
-  "service": "api",
-  "version": "0.1.0",
-  "time_utc": "2026-02-18T15:00:00Z",
-  "details": {
-    "uptime_s": 1234
-  }
-}
