@@ -4,7 +4,7 @@ info:
   version: 1.0.0
 
 paths:
-  /models:
+  /process:
     post:
       summary: Run damage detection models
       requestBody:
@@ -28,6 +28,7 @@ components:
     EngineAnalyzeRequest:
       type: object
       required:
+        - requestId
         - imageBase64
       properties:
         imageBase64:
