@@ -1,0 +1,91 @@
+openapi: 3.0.3
+
+info:
+  title: Client-API Contract
+  version: 1.0.0
+  description: >
+    Contract between Client and API service for single-image damage analysis.
+
+paths:
+  /analyze:
+    post:
+      summary: Analyze vehicle damage image
+      operationId: analyzeImage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientAnalyzeRequest'
+      responses:
+        '200':
+          description: Successful analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientAnalyzeResponse'
+        '422':
+          description: Validation error
+        '500':
+          description: Internal server error
+
+  /health:
+    get:
+      summary: API health check
+      operationId: apiHealth
+      responses:
+        '200':
+          description: API is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  schemas:
+
+    ClientAnalyzeRequest:
+      type: object
+      required:
+        - requestId
+        - imageBase64
+      properties:
+        requestId:
+          type: string
+          description: Unique identifier for the image request
+        imageBase64:
+          type: string
+          description: Base64 encoded vehicle image
+
+    ClientAnalyzeResponse:
+      type: object
+      properties:
+        requestId:
+          type: string
+          description: Echoed request identifier
+        detections:
+          type: array
+          items:
+            type: object
+            properties:
+              damageType:
+                type: string
+                description: Predicted damage class
+              confidence:
+                type: number
+                format: float
+                description: Confidence score between 0 and 1
+              bbox:
+                type: array
+                items:
+                  type: number
+                minItems: 4
+                maxItems: 4
+                description: Bounding box coordinates [x1, y1, x2, y2]
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
