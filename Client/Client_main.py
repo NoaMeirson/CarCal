@@ -1,13 +1,13 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI
 from .Client_methods import handle_request
-from models import ClientAnalyzeResponse, HealthResponse
+from models import ClientAnalyzeRequest, ClientAnalyzeResponse, HealthResponse
 
 app = FastAPI()
 
 
 @app.post("/analyze", response_model=ClientAnalyzeResponse)
-async def analyze(file: UploadFile = File(...)):
-    return await handle_request(file)
+def analyze(request: ClientAnalyzeRequest):
+    return handle_request(request)
 
 
 @app.get("/health", response_model=HealthResponse)

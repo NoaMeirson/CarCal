@@ -9,9 +9,9 @@ from models import ClientAnalyzeRequest, ClientAnalyzeResponse, EngineAnalyzeReq
 def analyze(request: ClientAnalyzeRequest):
 
     try:
-        image_bytes = base64.b64decode(request.imageBase64)
-    except Exception:
-        raise ValueError("Invalid base64 image")
+        image_bytes = base64.b64decode(request.imageBase64, validate=True)
+    except Exception as exc:
+        raise ValueError("Invalid base64 image") from exc
     
     validate_image(image_bytes)
 
@@ -19,9 +19,7 @@ def analyze(request: ClientAnalyzeRequest):
 
     return ClientAnalyzeResponse(
         requestId=request.requestId,
-        status="ok",
         detections=engine_result["detections"],
-        message=None
     )
 
 
