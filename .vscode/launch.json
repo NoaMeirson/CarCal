@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+
+  "configurations": [
+
+    {
+      "name": "Run Client",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "Client.Client_main:app",
+        "--port",
+        "8000",
+        "--reload"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "name": "Run Engine",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "Engine.Engine_main:app",
+        "--port",
+        "8001",
+        "--reload"
+      ],
+      "console": "integratedTerminal"
+    },
+
+    {
+      "name": "Run API",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "API.API_main:app",
+        "--port",
+        "8002",
+        "--reload"
+      ],
+      "console": "integratedTerminal"
+    }
+
+  ],
+
+  "compounds": [
+    {
+      "name": "Run All Services",
+      "preLaunchTask": "open-dashboard",
+      "configurations": [
+        "Run Client",
+        "Run Engine",
+        "Run API"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>CarCal Services</title>
+<style>
+body{
+    font-family: Arial;
+    background:#f5f5f5;
+    padding:40px;
+}
+.card{
+    background:white;
+    padding:20px;
+    margin:10px;
+    border-radius:10px;
+    width:300px;
+}
+.container{
+    display:flex;
+}
+a{
+    display:block;
+    margin:5px 0;
+}
+</style>
+</head>
+
+<body>
+
+<h1>CarCal Microservices</h1>
+
+<div class="container">
+
+<div class="card">
+<h2>Client</h2>
+<a href="http://localhost:8000/docs" target="_blank">Swagger</a>
+<a href="http://localhost:8000/health" target="_blank">Health</a>
+</div>
+
+<div class="card">
+<h2>API</h2>
+<a href="http://localhost:8002/docs" target="_blank">Swagger</a>
+<a href="http://localhost:8002/analyze" target="_blank">Analyze</a>
+<a href="http://localhost:8002/health" target="_blank">Health</a>
+</div>
+
+<div class="card">
+<h2>Engine</h2>
+<a href="http://localhost:8001/docs" target="_blank">Swagger</a>
+<a href="http://localhost:8001/process" target="_blank">Process</a>
+<a href="http://localhost:8001/health" target="_blank">Health</a>
+</div>
+
+</div>
+
+</body>
+</html>

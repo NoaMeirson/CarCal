@@ -1,0 +1,10 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "open-dashboard",
+        "type": "shell",
+        "command": "start http://localhost:8002/services"
+      }
+    ]
+  }
