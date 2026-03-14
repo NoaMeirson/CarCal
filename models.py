@@ -1,11 +1,13 @@
 from pydantic import BaseModel
 
 
-class BoundingBox(BaseModel):
-    x1: float
-    y1: float
-    x2: float
-    y2: float
+class Point(BaseModel):
+    x: float
+    y: float
+
+
+class Polygon(BaseModel):
+    points: list[Point]
 
 
 class ClientAnalyzeRequest(BaseModel):
@@ -17,7 +19,7 @@ class Detection(BaseModel):
     damageType: str
     part: str
     confidence: float
-    bbox: BoundingBox
+    polygon: Polygon
 
 
 class ClientAnalyzeResponse(BaseModel):
@@ -38,4 +40,10 @@ class EngineAnalyzeRequest(BaseModel):
     imageBase64: str
 
 class HealthResponse(BaseModel):
-    status: str    
+    status: str   
+
+class EngineHealthResponse(BaseModel):
+    status: str
+    engineReady: bool
+    carPartsModelReady: bool
+    message: str | None = None    
