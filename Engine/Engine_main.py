@@ -1,13 +1,14 @@
 from fastapi import FastAPI
-from models import EngineAnalyzeRequest, ClientAnalyzeResponse, EngineHealthResponse
-from .Engine_methods import process
-from .car_parts_model_service import (
+from models import EngineAnalyzeRequest, EngineAnalyzeResponse, EngineHealthResponse
+from Engine.Engine_methods import process
+from Engine.services.car_parts_model_service import (
     load_car_parts_model,
     is_car_parts_model_ready,
     get_car_parts_model_status,
 )
 
 app = FastAPI()
+
 
 @app.on_event("startup")
 def startup_event():
@@ -17,7 +18,7 @@ def startup_event():
         print(f"[Engine startup] Failed to load car parts model: {exc}")
 
 
-@app.post("/process", response_model=ClientAnalyzeResponse)
+@app.post("/process", response_model=EngineAnalyzeResponse)
 def process_endpoint(request: EngineAnalyzeRequest):
     return process(request)
 

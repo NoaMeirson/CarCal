@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 from PIL import Image
 
-from .EngineConfig import (
+from Engine.EngineConfig import (
     CAR_PARTS_MODEL_DIR,
     CAR_PARTS_MODEL_PREFERRED_DEVICE,
 )
@@ -67,7 +67,10 @@ def get_car_parts_model_status() -> dict[str, str | bool | None]:
     }
 
 
-def segment_car_parts(image: Image.Image):
+def run_car_parts_model(image: Image.Image):
+    """
+    Returns raw model outputs.
+    """
     if not is_car_parts_model_ready():
         raise RuntimeError(
             "Car parts model is not loaded. Call load_car_parts_model() first."
@@ -80,3 +83,38 @@ def segment_car_parts(image: Image.Image):
         outputs = _MODEL(**inputs)
 
     return outputs
+
+
+def postprocess_car_parts_raw_outputs(raw_outputs, image: Image.Image) -> dict:
+    """
+    Converts raw Mask2Former outputs into instance segmentation result.
+    """
+    if not is_car_parts_model_ready():
+        raise RuntimeError("Car parts model is not loaded.")
+
+    target_sizes = [(image.height, image.width)]
+
+    results = _PROCESSOR.post_process_instance_segmentation(
+        raw_outputs,
+        target_sizes=target_sizes,
+    )
+
+    if not results:
+        return {"segmentation": None, "segments_info": []}
+
+    return results[0]
+
+
+def get_car_parts_id2label() -> dict[int, str]:
+    if not is_car_parts_model_ready():
+        raise RuntimeError("Car parts model is not loaded.")
+
+    id2label = getattr(_MODEL.config, "id2label", None)
+    if not id2label:
+        return {}
+
+    normalized = {}
+    for key, value in id2label.items():
+        normalized[int(key)] = str(value)
+
+    return normalized

@@ -1,50 +1,35 @@
-import base64
-from io import BytesIO
-from PIL import Image, UnidentifiedImageError
 from models import EngineAnalyzeRequest, EngineAnalyzeResponse
-from .EngineConfig import MODEL_INPUT_SIZE
-from .car_parts_model_service import segment_car_parts
-
-def process(request: EngineAnalyzeRequest):
-
-    image_bytes = base64.b64decode(request.imageBase64)
-
-    image = decode_image(image_bytes)
-
-    resized_image = resize_image(image)
-
-    yolo_result = run_yolo(resized_image)
-
-    segmentation_result = run_mask2former(resized_image)
-
-    detections = combine_results(yolo_result, segmentation_result)
-
-    return EngineAnalyzeResponse(
-        requestId=request.requestId,
-        status="ok",
-        detections=detections,
-        message=None
-    )
+from Engine.utils.image_utils import decode_base64_image, resize_image
+from Engine.services.car_parts_model_service import run_car_parts_model
+from Engine.services.damage_model_service import run_damage_model
+from Engine.services.combine_service import combine_results
 
 
-def decode_image(image_bytes: bytes) -> Image.Image:
+def process(request: EngineAnalyzeRequest) -> EngineAnalyzeResponse:
     try:
-        return Image.open(BytesIO(image_bytes)).convert("RGB")
-    except UnidentifiedImageError as exc:
-        raise ValueError("Invalid image data provided.") from exc
+        image = decode_base64_image(request.imageBase64)
+        resized_image = resize_image(image)
 
+        damage_raw_result = run_damage_model(resized_image)
+        car_parts_raw_result = run_car_parts_model(resized_image)
 
-def resize_image(image):
-    return image.resize((MODEL_INPUT_SIZE, MODEL_INPUT_SIZE))
+        detections = combine_results(
+            damage_raw_result=damage_raw_result,
+            car_parts_raw_result=car_parts_raw_result,
+            image=resized_image,
+        )
 
+        return EngineAnalyzeResponse(
+            requestId=request.requestId,
+            status="ok",
+            detections=detections,
+            message=None
+        )
 
-def run_yolo(image):
-    return []
-
-
-def run_mask2former(image):
-    return segment_car_parts(image)
-
-
-def combine_results(yolo_result, segmentation_result):
-    return []
+    except Exception as exc:
+        return EngineAnalyzeResponse(
+            requestId=request.requestId,
+            status="error",
+            detections=[],
+            message=str(exc)
+        )
