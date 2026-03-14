@@ -38,4 +38,10 @@ class EngineAnalyzeRequest(BaseModel):
     imageBase64: str
 
 class HealthResponse(BaseModel):
-    status: str    
+    status: str   
+
+class EngineHealthResponse(BaseModel):
+    status: str
+    engineReady: bool
+    carPartsModelReady: bool
+    message: str | None = None    
