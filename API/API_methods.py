@@ -19,9 +19,10 @@ def analyze(request: ClientAnalyzeRequest):
 
     return ClientAnalyzeResponse(
         requestId=request.requestId,
-        status="ok",
+        status=engine_result["status"],
+        image=engine_result.get("image"),
         detections=engine_result["detections"],
-        message=None
+        message=engine_result.get("message")
     )
 
 
