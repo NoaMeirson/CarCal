@@ -1,6 +1,5 @@
 from pathlib import Path
 
-MODEL_INPUT_SIZE = 640
 
 DEVICE = "cpu" 
 
