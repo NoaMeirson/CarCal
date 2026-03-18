@@ -1,21 +1,16 @@
 import numpy as np
 
 from models import Detection
-from Engine.services.car_parts_model_service import (
-    postprocess_car_parts_raw_outputs,
-    get_car_parts_id2label,
-)
+from Engine.services.car_parts_model_service import get_car_parts_id2label
 from Engine.utils.segmentation_utils import mask_to_polygon
 
 
-def combine_results(damage_raw_result, car_parts_raw_result, image) -> list[Detection]:
+def combine_results(damage_result, car_parts_result) -> list[Detection]:
     """
     Temporary behavior:
     Ignore damage model result and return only car-parts detections.
     """
-    car_parts_result = postprocess_car_parts_raw_outputs(car_parts_raw_result, image)
     return convert_car_parts_result_to_detections(car_parts_result)
-
 
 def convert_car_parts_result_to_detections(segmentation_result) -> list[Detection]:
     detections: list[Detection] = []
@@ -50,8 +45,8 @@ def convert_car_parts_result_to_detections(segmentation_result) -> list[Detectio
         detections.append(
             Detection(
                 id=str(segment_id),
-                damageType="car_part",
-                part=part_name,
+                type="part",
+                label=part_name,
                 confidence=score,
                 polygon=polygon,
             )

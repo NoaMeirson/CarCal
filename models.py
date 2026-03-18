@@ -9,6 +9,10 @@ class Point(BaseModel):
 class Polygon(BaseModel):
     points: list[Point]
 
+class ImageInfo(BaseModel):
+    width: int
+    height: int    
+
 
 class ClientAnalyzeRequest(BaseModel):
     requestId: str
@@ -16,8 +20,8 @@ class ClientAnalyzeRequest(BaseModel):
 
 class Detection(BaseModel):
     id: str
-    damageType: str
-    part: str
+    type: str
+    label: str
     confidence: float
     polygon: Polygon
 
@@ -25,12 +29,14 @@ class Detection(BaseModel):
 class ClientAnalyzeResponse(BaseModel):
     requestId: str
     status: str
+    image: ImageInfo | None = None
     detections: list[Detection]
     message: str | None = None
 
 class EngineAnalyzeResponse(BaseModel):
     requestId: str
     status: str
+    image: ImageInfo | None = None
     detections: list[Detection]
     message: str | None = None
 
