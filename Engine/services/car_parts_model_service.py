@@ -8,6 +8,9 @@ from Engine.EngineConfig import (
     CAR_PARTS_MODEL_PREFERRED_DEVICE,
 )
 
+from models import Detection
+from Engine.utils.segmentation_utils import mask_to_polygon
+
 _MODEL = None
 _PROCESSOR = None
 _DEVICE = None
@@ -118,3 +121,45 @@ def get_car_parts_id2label() -> dict[int, str]:
         normalized[int(key)] = str(value)
 
     return normalized
+
+def convert_car_parts_result_to_detections(postprocessed_results) -> list[Detection]:
+    detections: list[Detection] = []
+
+    if not postprocessed_results:
+        return detections
+
+    segmentation_map = postprocessed_results.get("segmentation")
+    segments_info = postprocessed_results.get("segments_info", [])
+
+    if segmentation_map is None or not segments_info:
+        return detections
+
+    if hasattr(segmentation_map, "cpu"):
+        segmentation_map = segmentation_map.cpu().numpy()
+
+    id2label = get_car_parts_id2label()
+
+    for segment in segments_info:
+        segment_id = int(segment["id"])
+        label_id = int(segment["label_id"])
+        score = float(segment.get("score", 0.0))
+
+        mask = segmentation_map == segment_id
+        polygon = mask_to_polygon(mask)
+
+        if polygon is None:
+            continue
+
+        part_name = id2label.get(label_id, f"class_{label_id}")
+
+        detections.append(
+            Detection(
+                id=str(segment_id),
+                type="part",
+                label=part_name,
+                confidence=score,
+                polygon=polygon,
+            )
+        )
+
+    return detections

@@ -8,19 +8,13 @@ from models import ClientAnalyzeRequest, ClientAnalyzeResponse, EngineAnalyzeReq
 
 def analyze(request: ClientAnalyzeRequest):
 
-    try:
-        image_bytes = base64.b64decode(request.imageBase64)
-    except Exception:
-        raise ValueError("Invalid base64 image")
-    
-    validate_image(image_bytes)
-
-    engine_result = send_to_engine(image_bytes, request.requestId)
+    engine_result = send_to_engine(request)
 
     return ClientAnalyzeResponse(
         requestId=request.requestId,
         FileName=request.FileName,
         status=engine_result["status"],
+        mode=request.mode,
         image=engine_result.get("image"),
         detections=engine_result["detections"],
         message=engine_result.get("message")
@@ -39,13 +33,22 @@ def validate_image(image_bytes: bytes):
      image.verify()
 
 
-def send_to_engine(image_bytes: bytes, request_id: str):
+def send_to_engine(request):
 
+    try:
+        image_bytes = base64.b64decode(request.imageBase64)
+    except Exception:
+        raise ValueError("Invalid base64 image")
+    
+    validate_image(image_bytes)
+    
     image_base64 = base64.b64encode(image_bytes).decode()
 
     engine_request = EngineAnalyzeRequest(
-        requestId=request_id,
-        imageBase64=image_base64
+        requestId=request.requestId,
+        filename=request.FileName,
+        imageBase64=image_base64,
+        mode=request.mode
     )
 
     response = requests.post(

@@ -42,3 +42,9 @@ def postprocess_damage_raw_outputs(raw_outputs, image: Image.Image) -> dict:
 
 def get_damage_id2label() -> dict[int, str]:
     return {}
+
+def build_damage_detections(postprocessed_results):
+    """
+    Placeholder for future raw inference of the damage model.
+    """
+    return None

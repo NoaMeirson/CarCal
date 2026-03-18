@@ -2,7 +2,7 @@ import base64
 import requests
 import uuid
 
-from .ClientConfig import API_URL, REQUEST_TIMEOUT
+from .ClientConfig import API_URL, REQUEST_TIMEOUT, MODE
 from models import ClientAnalyzeRequest, ClientAnalyzeResponse
 
 
@@ -15,7 +15,8 @@ async def handle_request(file):
     request = ClientAnalyzeRequest(
         requestId = str(uuid.uuid4()),
         FileName=file.filename,
-        imageBase64=image_base64
+        imageBase64=image_base64,
+        mode = MODE
     )
 
     response = requests.post(
