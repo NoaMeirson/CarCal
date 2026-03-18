@@ -25,6 +25,7 @@ def process(request: EngineAnalyzeRequest) -> EngineAnalyzeResponse:
 
         return EngineAnalyzeResponse(
             requestId=request.requestId,
+            FileName=request.FileName,
             status="ok",
             image={
                 "width": image.width,
@@ -37,6 +38,7 @@ def process(request: EngineAnalyzeRequest) -> EngineAnalyzeResponse:
     except Exception as exc:
         return EngineAnalyzeResponse(
             requestId=request.requestId,
+            FileName=request.FileName,
             status="error",
             image=None,
             detections=[],

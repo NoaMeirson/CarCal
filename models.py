@@ -16,6 +16,7 @@ class ImageInfo(BaseModel):
 
 class ClientAnalyzeRequest(BaseModel):
     requestId: str
+    FileName: str | None = None
     imageBase64: str
 
 class Detection(BaseModel):
@@ -28,6 +29,7 @@ class Detection(BaseModel):
 
 class ClientAnalyzeResponse(BaseModel):
     requestId: str
+    FileName: str | None = None
     status: str
     image: ImageInfo | None = None
     detections: list[Detection]
@@ -35,6 +37,7 @@ class ClientAnalyzeResponse(BaseModel):
 
 class EngineAnalyzeResponse(BaseModel):
     requestId: str
+    FileName: str | None = None
     status: str
     image: ImageInfo | None = None
     detections: list[Detection]
@@ -43,6 +46,7 @@ class EngineAnalyzeResponse(BaseModel):
 
 class EngineAnalyzeRequest(BaseModel):
     requestId: str
+    FileName: str | None = None
     imageBase64: str
 
 class HealthResponse(BaseModel):

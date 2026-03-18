@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 DEVICE = "cpu" 
 
 MAX_DETECTIONS = 20
