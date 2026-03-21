@@ -65,4 +65,5 @@ class EngineHealthResponse(BaseModel):
     status: str
     engineReady: bool
     carPartsModelReady: bool
+    damageModelReady: bool
     message: str | None = None    

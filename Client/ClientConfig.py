@@ -2,4 +2,4 @@ API_URL = "http://localhost:8002/analyze"
 
 REQUEST_TIMEOUT = 60
 
-MODE= "car_parts_only"
+MODE= "damage_only"
