@@ -1,41 +1,69 @@
 from pydantic import BaseModel
+from enum import Enum
+
+class Point(BaseModel):
+    x: float
+    y: float
 
 
-class BoundingBox(BaseModel):
-    x1: float
-    y1: float
-    x2: float
-    y2: float
+class Polygon(BaseModel):
+    points: list[Point]
+
+class ImageInfo(BaseModel):
+    width: int
+    height: int    
+
+class MatchInfo(BaseModel):
+    part: str
+    score: float
+    coveragePercent: float | None = None
+
+class Detection(BaseModel):
+    id: str
+    type: str
+    label: str
+    confidence: float
+    polygon: Polygon
+    matches: list[MatchInfo] | None = None
 
 
 class ClientAnalyzeRequest(BaseModel):
     requestId: str
+    FileName: str | None = None
     imageBase64: str
+    mode: str
 
-class Detection(BaseModel):
-    id: str
-    damageType: str
-    part: str
-    confidence: float
-    bbox: BoundingBox
-
+class EngineAnalyzeRequest(BaseModel):
+    requestId: str
+    FileName: str | None = None
+    imageBase64: str
+    mode: str
 
 class ClientAnalyzeResponse(BaseModel):
     requestId: str
+    FileName: str | None = None
     status: str
+    mode: str
+    image: ImageInfo | None = None
     detections: list[Detection]
     message: str | None = None
 
 class EngineAnalyzeResponse(BaseModel):
     requestId: str
+    FileName: str | None = None
     status: str
+    mode: str
+    image: ImageInfo | None = None
     detections: list[Detection]
     message: str | None = None
 
 
-class EngineAnalyzeRequest(BaseModel):
-    requestId: str
-    imageBase64: str
-
 class HealthResponse(BaseModel):
-    status: str    
+    status: str   
+
+class EngineHealthResponse(BaseModel):
+    status: str
+    engineReady: bool
+    carPartsModelReady: bool
+    damageModelReady: bool
+    message: str | None = None    
