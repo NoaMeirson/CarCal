@@ -1,4 +1,4 @@
-API_URL = "http://localhost:8002/analyze"
+API_URL = "http://193.106.55.108:8002/analyze"
 
 REQUEST_TIMEOUT = 60
 
