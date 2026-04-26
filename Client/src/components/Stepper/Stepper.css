@@ -1,0 +1,169 @@
+/* Stepper - Premium Futuristic Design */
+.stepper-container {
+  margin-bottom: 2.5rem;
+  padding: 1.5rem 0;
+}
+
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  counter-increment: step;
+}
+
+.step-connector {
+  position: absolute;
+  top: 22px;
+  left: calc(-50% + 24px);
+  right: calc(-50% + 24px);
+  height: 3px;
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.step-connector-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  border-radius: 999px;
+  transition: width 0.5s ease-out;
+}
+
+.step.completed .step-connector-fill {
+  width: 100%;
+}
+
+.step:last-child .step-connector {
+  display: none;
+}
+
+.step-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  color: #6366f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.1);
+}
+
+.step.active .step-circle {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+  transform: scale(1.1);
+}
+
+.step.completed .step-circle {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+}
+
+.step-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+.step-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #64748b;
+  transition: color 0.3s;
+  max-width: 140px;
+}
+
+.step.active .step-label {
+  color: #6366f1;
+}
+
+.step.completed .step-label {
+  color: #059669;
+}
+
+.step-indicator {
+  width: 6px;
+  height: 6px;
+  background: #6366f1;
+  border-radius: 50%;
+  margin-top: 0.5rem;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stepper {
+    gap: 0;
+  }
+  
+  .step-circle {
+    width: 40px;
+    height: 40px;
+    font-size: 0.95rem;
+  }
+  
+  .step-connector {
+    top: 18px;
+    left: calc(-50% + 20px);
+    right: calc(-50% + 20px);
+  }
+  
+  .step-label {
+    font-size: 0.8rem;
+    max-width: 100px;
+  }
+}
+
+@media (max-width: 500px) {
+  .stepper {
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  
+  .step-label {
+    font-size: 0.7rem;
+    max-width: 80px;
+  }
+}
+  .step-label {
+    font-size: 0.85rem;
+    margin-left: 0.5rem;
+  }
+  .step-line {
+    width: 24px;
+  }
+}
