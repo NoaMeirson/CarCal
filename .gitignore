@@ -1,6 +1,4 @@
 .venv/
 __pycache__/
 Engine/Artifacts/Car_parts/car_parts_M2F_model/
-
-node_modules/
-Client/node_modules/
+CLAUDE.md
