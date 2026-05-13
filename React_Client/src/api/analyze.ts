@@ -1,6 +1,7 @@
 import type { AnalyzeResponse, Mode } from '../types/models'
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8002/analyze'
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8002'
+const API_URL = `${API_BASE}/analyze`
 
 export async function analyzeImage(file: File, mode: Mode): Promise<AnalyzeResponse> {
   const buffer = await file.arrayBuffer()
