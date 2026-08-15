@@ -1,0 +1,21 @@
+# Direct dependencies for the API and Engine services (Client is now the
+# separate React_Client/ app, npm-managed — see React_Client/package.json).
+# Derived from actual imports in models.py, API/, and Engine/.
+#
+# Versions below are pinned to what was actually installed and validated in
+# this project's .venv before it was deleted (confirmed from installed
+# dist-info metadata), except ultralytics, which is inferred from the
+# `version` field embedded in the deployed damage_YOLO_model.pt checkpoint
+# rather than directly observed — verify with `pip show ultralytics` after
+# install if you want to double check.
+
+fastapi==0.135.1
+uvicorn==0.41.0
+pydantic
+requests==2.32.5
+pillow==12.1.1
+numpy==2.2.6
+opencv-python==4.13.0.92
+torch==2.10.0
+transformers==5.3.0
+ultralytics==8.4.99

@@ -55,23 +55,6 @@ export function Navbar({ dark }: Props) {
             Inspection Console
           </span>
         </div>
-
-        <div className="ml-auto flex items-center gap-8">
-          {(['Workflow', 'API', 'Contact'] as const).map(link => (
-            <a
-              key={link}
-              href={link === 'API' ? '#console' : '#'}
-              className={[
-                'text-sm font-medium transition-colors',
-                dark
-                  ? 'text-white/70 hover:text-white'
-                  : 'text-slate-500 hover:text-slate-900',
-              ].join(' ')}
-            >
-              {link}
-            </a>
-          ))}
-        </div>
       </div>
     </nav>
   )

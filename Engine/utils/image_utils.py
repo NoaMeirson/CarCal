@@ -1,7 +1,7 @@
 import base64
 from io import BytesIO
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 
 
@@ -15,6 +15,7 @@ def decode_base64_image(image_base64: str) -> Image.Image:
 
 def decode_image_bytes(image_bytes: bytes) -> Image.Image:
     try:
-        return Image.open(BytesIO(image_bytes)).convert("RGB")
+        image = Image.open(BytesIO(image_bytes))
+        return ImageOps.exif_transpose(image).convert("RGB")
     except UnidentifiedImageError as exc:
         raise ValueError("Invalid image data provided.") from exc

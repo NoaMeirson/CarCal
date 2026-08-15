@@ -1,4 +1,10 @@
 .venv/
 __pycache__/
 Engine/Artifacts/Car_parts/car_parts_M2F_model/
+Engine/Artifacts/Car_parts/car_parts_M2F_model_NOA/
+Engine/Artifacts/Car_parts/car_parts_M2F_model_OFEK/
 CLAUDE.md
+React_Client/dist/
+React_Client/build/
+React_Client/release/
+React_Client/server/.venv/

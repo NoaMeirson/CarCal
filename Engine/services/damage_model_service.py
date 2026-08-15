@@ -9,6 +9,8 @@ from ultralytics import YOLO
 from Engine.EngineConfig import (
     DAMAGE_MODEL_PATH,
     DAMAGE_MODEL_PREFERRED_DEVICE,
+    DAMAGE_MODEL_CONFIDENCE,
+    DAMAGE_MODEL_IMGSZ,
 )
 
 from models import Detection
@@ -71,6 +73,8 @@ def run_damage_model(image: Image.Image):
         source=image,
         verbose=False,
         retina_masks=True,
+        conf=DAMAGE_MODEL_CONFIDENCE,
+        imgsz=DAMAGE_MODEL_IMGSZ,
     )
 
     return results

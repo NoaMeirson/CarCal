@@ -3,19 +3,7 @@
 
   "configurations": [
 
-    {
-      "name": "Run Client",
-      "type": "python",
-      "request": "launch",
-      "module": "uvicorn",
-      "args": [
-        "Client.Client_main:app",
-        "--port",
-        "8000",
-        "--reload"
-      ],
-      "console": "integratedTerminal"
-    },
+
 
     {
       "name": "Run Engine",
@@ -50,9 +38,7 @@
   "compounds": [
     {
       "name": "Run All Services",
-      "preLaunchTask": "open-dashboard",
       "configurations": [
-        "Run Client",
         "Run Engine",
         "Run API"
       ]
