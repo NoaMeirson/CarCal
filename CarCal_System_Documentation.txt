@@ -1,0 +1,575 @@
+================================================================================
+CARCAL — SYSTEM DOCUMENTATION
+AI-based car damage assessment platform: architecture, data flow, and UI/UX
+================================================================================
+Branch reviewed: feature/react-client
+Scope: Client (React), API, Engine, shared contracts, configuration, and the
+end-to-end request lifecycle.
+
+
+--------------------------------------------------------------------------------
+1. SYSTEM OVERVIEW
+--------------------------------------------------------------------------------
+
+CarCal detects vehicle damage and vehicle body parts in a photo and, in its
+richest mode, tells the user which part each damage sits on. It is built as
+three independently deployable FastAPI-based tiers, plus a browser client:
+
+    [ React Client ]  --HTTP-->  [ API service :8002 ]  --HTTP-->  [ Engine service :8001 ]
+       (SPA, port           (orchestration /              (ML inference:
+        5173 in dev)          validation)                  Mask2Former + YOLO)
+
+- Client (React_Client/): a Vite + React + TypeScript single-page app. The
+  user uploads a photo, picks an analysis mode, and views the results as
+  colored overlays on the image plus a sortable detection list.
+- API (API/): a thin FastAPI orchestrator. Validates the incoming image,
+  forwards the request to the Engine, and relays the response back untouched
+  in shape. Also serves a small HTML "services dashboard".
+- Engine (Engine/): the ML core. Loads two models once at startup (a
+  Mask2Former instance-segmentation model for car parts, and a YOLO
+  segmentation model for damage), runs inference, converts masks to
+  polygons, and — in combined mode — computes which parts each damage
+  overlaps.
+
+Note on the old Client/: this repository previously had a Python/FastAPI
+"Client" microservice on port 8000 (Client_main.py, ClientConfig.py, a
+server-rendered index.html). On this branch that entire service has been
+deleted (see git status: everything under Client/ is marked D) and replaced
+by the React_Client/ SPA described in this document. The API's dashboard
+(API/dashboard.py) and CLAUDE.md still reference a Client health check at
+http://localhost:8000/health — that endpoint no longer exists on this
+branch, because the new React client is a static SPA with no backend
+process of its own (only an optional packaged desktop wrapper, see section
+4.6). This is a leftover from the migration and not an active bug in the
+data path, but the "Client" card on the dashboard will show CONNECTION_FAILED
+unless the old service (or something else on port 8000) happens to be
+running.
+
+
+--------------------------------------------------------------------------------
+2. END-TO-END DATA FLOW
+--------------------------------------------------------------------------------
+
+Step-by-step for one "combined" analysis request:
+
+ 1. User drops/selects an image file in the React app (ImageUploader).
+ 2. On "Run analysis", the browser reads the File into an ArrayBuffer and
+    base64-encodes it client-side (React_Client/src/api/analyze.ts). No
+    resizing/compression happens in the browser — the original file bytes
+    are sent as-is.
+ 3. The client POSTs JSON to `${apiUrl}/analyze`:
+        { requestId: <uuid v4>, FileName, imageBase64, mode }
+    `apiUrl` comes from a runtime-injected `window.__APP_CONFIG__.apiUrl`
+    (see section 4.5), defaulting to http://localhost:8002.
+ 4. API `/analyze` (API/API_main.py -> API/API_methods.py):
+      a. base64-decodes the payload,
+      b. validates it: rejects empty images, rejects anything over
+         MAX_IMAGE_SIZE (10 MB), and calls PIL's Image.verify() to reject
+         corrupt/non-image data,
+      c. re-encodes to base64 and forwards to the Engine as an
+         EngineAnalyzeRequest, POSTing to ENGINE_URL
+         (http://localhost:8001/process) with a 60s timeout.
+ 5. Engine `/process` (Engine/Engine_main.py -> Engine/Engine_methods.py):
+      a. base64-decodes the image, applies EXIF-orientation correction, and
+         forces RGB (Engine/utils/image_utils.py),
+      b. dispatches on `mode`:
+         - "car_parts_only": runs only the Mask2Former model,
+         - "damage_only": runs only the YOLO model,
+         - "combined": runs both models, then overlaps their masks to
+           associate every damage with the car part(s) it touches,
+      c. converts every predicted mask to a single-contour polygon
+         (Engine/utils/segmentation_utils.py, OpenCV `findContours`),
+      d. returns an EngineAnalyzeResponse: status, mode, image
+         {width,height}, and a list of Detection objects.
+ 6. The API relays the Engine's response back to the client, reshaped as a
+    ClientAnalyzeResponse (same field set).
+ 7. The React client (useAnalyze hook) stores the result. If
+    `status === "error"` it surfaces `message` as an inline error instead of
+    rendering results.
+ 8. ResultCanvas draws the original image on an HTML5 <canvas> sized to the
+    image's *natural* pixel dimensions, then draws every detection's polygon
+    directly using its returned pixel coordinates — no coordinate scaling is
+    needed because the Engine already returns polygons in the same pixel
+    space as the original uploaded image (see section 3, "coordinate
+    system").
+
+All three hops (Client->API, API->Engine) carry the full image as a base64
+string inside a JSON body, not as multipart/binary upload — this is
+consistent through the whole chain (see section 6, shared contracts).
+
+
+--------------------------------------------------------------------------------
+3. ENGINE — ML PIPELINE DETAIL
+--------------------------------------------------------------------------------
+
+3.1 Two models, loaded once at process startup
+------------------------------------------------
+Engine/Engine_main.py's `startup_event()` eagerly loads both models when the
+Engine process boots (uvicorn --reload will reload them on code changes).
+Either model can fail to load without crashing the process — the Engine
+comes up in a "degraded" state and `/health` reports which model(s) failed
+and why (Engine/services/*_model_service.py `_MODEL_READY` / `_MODEL_LOAD_ERROR`
+globals).
+
+  Car Parts model (Engine/services/car_parts_model_service.py)
+    - Architecture: Mask2Former (HuggingFace Transformers), instance
+      segmentation.
+    - Artifact: Engine/artifacts/car_parts/car_parts_M2F_model/ (git-ignored
+      binary weights; config/preprocessor JSON are committed).
+    - 23 output classes (see section 3.4).
+    - Runs on CUDA if available, else CPU (EngineConfig.CAR_PARTS_MODEL_
+      PREFERRED_DEVICE, checked against torch.cuda.is_available()).
+
+  Damage model (Engine/services/damage_model_service.py)
+    - Architecture: YOLO segmentation (Ultralytics).
+    - Artifact: Engine/artifacts/damages/damage_YOLO_model.pt (committed).
+    - 6 output classes: dent, scratch, crack, glass shatter, lamp broken,
+      tire flat.
+    - Inference params: conf=DAMAGE_MODEL_CONFIDENCE (0.5), imgsz=
+      DAMAGE_MODEL_IMGSZ (960), retina_masks=True (upsamples masks back to
+      full input resolution instead of the model's internal working
+      resolution).
+
+3.2 Coordinate system
+------------------------------------------------
+Every mask, polygon, and pixel coordinate in the system — from the moment
+the image is decoded until it reaches the browser — lives in the pixel
+space of the *decoded, EXIF-corrected* input image: origin at the top-left
+corner, x = column, y = row, both in raw pixels (not normalized 0..1).
+
+  - YOLO: called with `retina_masks=True`, so `result.masks.data` is already
+    upsampled to the original image's (H, W) — no manual rescale needed.
+  - Mask2Former: `processor.post_process_instance_segmentation(...,
+    target_sizes=[(image.height, image.width)])` explicitly asks the HF
+    processor to upsample its output back to the original size.
+  - Because both models are independently resolved to the same (H, W), a
+    plain boolean `np.logical_and` between a damage mask and a part mask
+    (in combine_service.py) is valid with no coordinate transform.
+  - The polygons shipped to the client are in this same pixel space, which
+    is why ResultCanvas can draw them straight onto a canvas sized to the
+    image's natural width/height with zero client-side scaling math.
+
+3.3 Mask -> polygon conversion
+------------------------------------------------
+Engine/utils/segmentation_utils.py `mask_to_polygon()`:
+  - `cv2.findContours(mask, RETR_EXTERNAL, CHAIN_APPROX_SIMPLE)`.
+  - Keeps only the LARGEST external contour by area. If a mask has multiple
+    disconnected blobs (e.g. an occluded part, or a damage that visually
+    splits into two regions), everything but the largest piece is dropped
+    from the polygon sent to the client. This only affects the returned
+    polygon shape — combine_service's overlap math (section 3.5) still uses
+    the full boolean mask, not the simplified polygon, so multi-blob masks
+    don't bias the score/coverage numbers, only the outline drawn in the UI.
+  - Requires >= 3 points; returns None (segment dropped) otherwise.
+  - No smoothing/simplification beyond OpenCV's CHAIN_APPROX_SIMPLE.
+
+3.4 Car-parts label set (23 classes)
+------------------------------------------------
+  back_bumper, back_door, back_glass, back_left_door, back_left_light,
+  back_light, back_right_door, back_right_light, front_bumper, front_door,
+  front_glass, front_left_door, front_left_light, front_light,
+  front_right_door, front_right_light, hood, left_mirror, object,
+  right_mirror, tailgate, trunk, wheel
+
+  "object" is a catch-all for a vehicle part that doesn't fit any other
+  label. Side-specific labels (front_left_door vs. front_door) and their
+  generic counterparts coexist in the same vocabulary.
+
+3.5 Combined mode — damage-to-part assignment algorithm
+------------------------------------------------
+Implemented in Engine/services/combine_service.py `combine_results()`.
+This only runs in "combined" mode; car_parts_only/damage_only never touch
+this code path (so there's no double-postprocessing — each raw model
+output is postprocessed exactly once per request either way).
+
+  For every detected damage instance:
+    1. Compute damage_area = count of True pixels in its boolean mask.
+       Skip (continue) if 0.
+    2. Convert its mask to a polygon (for display). Skip if the polygon has
+       < 3 points.
+    3. For every detected car-part instance:
+         a. part_area = count of True pixels in its mask. Skip if 0.
+         b. intersection = count of pixels where BOTH masks are True
+            (`np.logical_and(damage_mask, part_mask).sum()`).
+         c. Skip this (damage, part) pair entirely if intersection == 0 —
+            i.e. there is NO minimum-overlap threshold; a single shared
+            pixel is enough to register a match.
+         d. score            = intersection / damage_area
+                                ("what fraction of this damage sits on this
+                                part" — always in (0, 1]).
+         e. coveragePercent  = intersection / part_area * 100
+                                ("what fraction of this part's visible area
+                                is covered by this damage").
+       These are two independent, asymmetric ratios — NOT an IoU. A small
+       damage fully inside a huge part can score 1.0 while barely denting
+       that part's coveragePercent.
+    4. Sort the resulting matches by `score` descending (so the "primary"
+       part a damage sits on is listed first).
+    5. Emit one Detection per damage (type="damage") with `matches: [...]`
+       populated. If a damage overlapped no part at all, `matches` is sent
+       as `null` (not an empty array) rather than dropping the damage from
+       the result set — every detected damage is always returned.
+
+  Important characteristics:
+    - A damage can (and often will) match MULTIPLE parts if it straddles a
+      panel seam — this is intentional, not a bug.
+    - Car parts are never returned as their own top-level Detection objects
+      in combined mode — they only surface indirectly, as bare label
+      strings inside each damage's `matches[].part`. Their own polygons and
+      confidences are not sent to the client in this mode (only in
+      car_parts_only mode).
+    - The algorithm is O(N_damage x M_parts) full-mask boolean intersections
+      with no spatial pre-filtering (e.g. bounding-box culling); acceptable
+      given MAX_DETECTIONS = 20 per model.
+
+3.6 Threshold reference (verified against the winning training notebooks)
+------------------------------------------------
+  DAMAGE_MODEL_CONFIDENCE = 0.5   (Engine/EngineConfig.py)
+  DAMAGE_MODEL_IMGSZ      = 960   (Engine/EngineConfig.py)
+  Mask2Former post-process threshold = 0.5 (HF library default; not
+  overridden in code, and independently confirmed as the mIoU-optimal value
+  in the car-parts training notebook's own threshold sweep)
+
+  These are cross-checked against the actual deployed model artifacts (not
+  just the training notebooks) — see "Model provenance" in section 7.
+
+
+--------------------------------------------------------------------------------
+4. CLIENT — REACT APP (React_Client/)
+--------------------------------------------------------------------------------
+
+4.1 Stack
+------------------------------------------------
+  - React 18 + TypeScript, built with Vite 5.
+  - Styling: Tailwind CSS (utility classes inline in JSX; no CSS-in-JS, no
+    component library — every visual element, including icons, is hand-built
+    inline SVG).
+  - No routing library, no global state manager (Redux/Zustand/etc.) — a
+    single top-level component (App.tsx) owns all UI state via useState, and
+    one custom hook (useAnalyze) owns the network call's async state.
+  - No test setup present in React_Client/.
+
+4.2 File/component map
+------------------------------------------------
+  src/main.tsx              - React root, StrictMode.
+  src/App.tsx                - Top-level layout & state: file, preview URL,
+                                mode, selected detection id, hero-visibility
+                                flag; wires the 3-step form to useAnalyze.
+  src/hooks/useAnalyze.ts    - { loading, result, error, run(file, mode) }.
+                                Treats an { status: "error" } response the
+                                same as a network exception (surfaces
+                                `message` as `error`, does not populate
+                                `result`).
+  src/api/analyze.ts          - Builds the request body, base64-encodes the
+                                file client-side, POSTs to `${apiUrl}/analyze`.
+  src/types/models.ts          - TypeScript mirror of the Python Pydantic
+                                models (Point, Polygon, ImageInfo, MatchInfo,
+                                Detection, AnalyzeResponse, Mode). Kept in
+                                sync by hand — there is no shared schema
+                                generation between the Python and TS sides.
+  src/components/Navbar.tsx    - Fixed top nav; swaps to a transparent/dark
+                                variant while the hero section is on screen
+                                (IntersectionObserver in App.tsx).
+  src/components/HeroSection.tsx - Full-viewport marketing/landing section
+                                with a hand-drawn inline-SVG car illustration
+                                and a CTA that smooth-scrolls to the console.
+  src/components/ImageUploader.tsx - Drag-and-drop + click-to-browse file
+                                input; only accepts image/* MIME types.
+  src/components/ModeSelector.tsx - 3-way segmented control for the analysis
+                                mode (see 4.4).
+  src/components/ResultCanvas.tsx - Canvas-based image + polygon-overlay
+                                renderer with hover/click detection picking
+                                (see 4.4).
+  src/components/DetectionList.tsx - Scrollable sidebar list of detections,
+                                grouped into "Damage" / "Car Parts" sections,
+                                each row clickable to sync with the canvas
+                                selection.
+
+4.3 Page structure / UX flow
+------------------------------------------------
+The app is a single scrolling page with two full-height sections:
+
+  1. HERO (dark, gradient navy background, animated car illustration):
+     marketing framing ("Pinpoint damage. Identify the part. In seconds.")
+     with a single CTA button, "Open Inspection Console", that smooth-
+     scrolls down to the console section. The navbar is transparent/white-
+     text while this section is in view and switches to a light, bordered
+     bar once the user scrolls past it.
+
+  2. CONSOLE (light gray background, id="console"): the actual working UI,
+     laid out as a 2-column workspace:
+       - LEFT column (fixed 420px): three numbered step-cards —
+           Step 1 "Upload vehicle photo"  -> ImageUploader
+           Step 2 "Choose analysis"       -> ModeSelector
+           Step 3 "Run"                   -> submit button (+ inline error
+                                              banner on failure)
+       - RIGHT column (flexible width): a single "Result" card containing:
+           - Before any file is chosen: an empty state (dashed icon +
+             hint text).
+           - After a file is chosen but before running: a plain <img>
+             preview (no overlays yet).
+           - After a successful run: ResultCanvas (image + polygon
+             overlays) with a "N detections found" subtitle, followed by
+             DetectionList underneath (only rendered if there's at least
+             one detection).
+
+  3. FOOTER: static copyright/version line.
+
+4.4 Result visualization — interaction model
+------------------------------------------------
+ResultCanvas renders the uploaded image onto a <canvas> sized to the
+image's *natural* pixel dimensions (not its on-screen CSS size), then
+draws every detection polygon directly in that same pixel space (see
+section 3.2 — no scaling math needed client-side because Engine already
+returns pixel-space coordinates). CSS scales the canvas down to fit the
+viewport (`max-height: 70vh`) while canvas-space coordinates stay 1:1 with
+the image.
+
+  Color coding:
+    - type "part"     -> blue (#3b82f6)
+    - type "damage"   -> red (#ef4444)
+    - selected (any type, click) -> amber (#f59e0b), overrides the base color
+    - hovered (mouse over, not selected) -> a darker shade of the same
+      palette + glow
+
+  Rendering order per frame (redraws on every detections/selection/hover
+  change): all "normal" polygons first (semi-transparent fill, thin
+  stroke) -> the hovered polygon (if any, and not also selected) drawn on
+  top with a glow and its label -> the selected polygon drawn last/topmost,
+  always with its label. This layering guarantees the highlighted shape is
+  never visually buried under overlapping polygons.
+
+  Hit-testing: mousemove and click both run a manual ray-casting
+  point-in-polygon test (odd-even rule) against every detection's polygon,
+  iterating back-to-front so the topmost-drawn (last) shape wins on overlap.
+  There is no use of Canvas's built-in `isPointInPath` — it's a hand-rolled
+  point-in-polygon function, run against the raw polygon point arrays kept
+  in refs (so the hit-test always sees the latest detections/selection even
+  inside stale-closure event handlers).
+
+  Selecting a detection (by clicking either the canvas shape or its row in
+  DetectionList) is bidirectional and shares one piece of state
+  (`selectedId` in App.tsx) — clicking a polygon highlights its list row
+  and vice versa.
+
+4.5 Mode selector semantics
+------------------------------------------------
+Three mutually exclusive modes, mapped 1:1 to the Engine's processing modes:
+  - "Damage only"     -> mode: "damage_only"   — locate impact areas only.
+  - "Car parts only"  -> mode: "car_parts_only" — segment vehicle parts only.
+  - "Combined"         -> mode: "combined"       — damage x part overlap
+                          (default selection on page load).
+
+4.6 Runtime configuration & deployment
+------------------------------------------------
+The API base URL is NOT hardcoded into the JS bundle. It's injected at
+runtime via a tiny `/config.js` script tag loaded before the React bundle
+in index.html, which sets `window.__APP_CONFIG__ = { apiUrl }`. This lets
+the same built `dist/` bundle point at different API hosts without
+rebuilding:
+
+  - In `npm run dev` / `npm run preview`, a Vite middleware
+    (vite.config.ts `runtimeConfigPlugin`) serves `/config.js` by reading
+    React_Client/config.json on every request.
+  - Packaged desktop build: React_Client/server/serve.py is a small
+    stdlib-only HTTP server (no FastAPI/Node needed at runtime) intended to
+    be frozen into a single .exe with PyInstaller. It serves the pre-built
+    `dist/` folder, generates `/config.js` from a `config.json` placed next
+    to the executable (auto-creating one with default
+    `apiUrl: "http://localhost:8002"` if missing), picks a free local port
+    (preferring 5173), and auto-opens the default browser. This lets
+    CarCal ship as a double-click desktop app whose backend URL can be
+    repointed post-install just by editing a JSON file — no rebuild.
+  - Current checked-in React_Client/config.json points `apiUrl` at
+    `http://193.106.55.108:8002` (an external/deployed API host) rather
+    than localhost — worth confirming that's intentional before any local
+    dev/demo, since ImageUploader/useAnalyze will silently talk to that
+    remote host until config.json (or the injected /config.js) is changed.
+
+
+--------------------------------------------------------------------------------
+5. API SERVICE (API/)
+--------------------------------------------------------------------------------
+
+5.1 Responsibilities
+------------------------------------------------
+The API tier is intentionally thin — it does not touch pixels or run any
+model code. Its jobs are:
+  1. Expose a stable, client-facing `/analyze` contract independent of the
+     Engine's internal one.
+  2. Validate the incoming image before spending Engine compute on it.
+  3. Forward the request to the Engine over HTTP and relay the response.
+  4. Provide `/health` and a human-facing `/services` dashboard.
+
+5.2 Endpoints (API/API_main.py)
+------------------------------------------------
+  POST /analyze   -> ClientAnalyzeResponse  (see API_methods.analyze)
+  GET  /health     -> HealthResponse {status: "ok"}  (always ok; does not
+                      check the Engine's own health)
+  GET  /services    -> HTML dashboard (API/dashboard.py)
+
+  CORS: `allow_origins=["*"]`, methods GET/POST, header Content-Type only —
+  permissive, appropriate for a dev/demo deployment, worth tightening for
+  production (see section 7).
+
+5.3 Request handling (API/API_methods.py)
+------------------------------------------------
+  analyze(request: ClientAnalyzeRequest):
+    1. send_to_engine(request):
+         a. base64-decode request.imageBase64 (raises ValueError on bad
+            base64 -> surfaces as a 500 with that message, since API_main.py
+            has no explicit exception handler registered — FastAPI's default
+            handling applies).
+         b. validate_image(image_bytes):
+              - reject empty images,
+              - reject images over MAX_IMAGE_SIZE (10 MB),
+              - PIL `Image.verify()` to reject corrupt/non-image payloads.
+         c. re-encode to base64 and build an EngineAnalyzeRequest, POST to
+            ENGINE_URL with REQUEST_TIMEOUT=60s.
+         d. non-200 from the Engine -> RuntimeError("Engine service error").
+    2. Wrap the Engine's JSON response into a ClientAnalyzeResponse with the
+       same requestId/FileName/mode/detections/message the caller sent or
+       expects.
+
+  Known discrepancy: when building the EngineAnalyzeRequest, the code
+  passes `filename=request.FileName` (lowercase `filename`), but
+  EngineAnalyzeRequest's actual field is `FileName` (capital F, see
+  models.py). Pydantic v2 silently ignores unrecognized constructor
+  keyword arguments by default, so this does NOT raise — it just means
+  `FileName` is never actually set on the outgoing EngineAnalyzeRequest and
+  defaults to None. Net effect: the original filename the user uploaded is
+  dropped between API and Engine, though it still round-trips back to the
+  client because ClientAnalyzeResponse copies `FileName` from the ORIGINAL
+  ClientAnalyzeRequest, not from the Engine's response. This is a
+  documentation note, not something changed as part of writing this paper.
+
+5.4 Configuration (API/APIConfig.py)
+------------------------------------------------
+  ENGINE_URL          = http://localhost:8001/process
+  ENGINE_HEALTH_URL   = http://localhost:8001/health   (defined, not
+                         currently used by API_main.py's own /health)
+  REQUEST_TIMEOUT      = 60 seconds
+  MAX_IMAGE_SIZE        = 10 MB
+  IMAGE_SIZE            = 640  (defined, not referenced anywhere in
+                         API_methods.py — appears unused/legacy)
+
+5.5 Services dashboard (API/dashboard.py)
+------------------------------------------------
+`GET /services` returns a small self-contained HTML page (no external
+assets) with one card per tier (Client, API, Engine), each showing a live
+UP / TIMEOUT / CONNECTION_FAILED / UNEXPECTED_STATUS_<code> status (probed
+with a 1s timeout against each service's own /health) plus links to that
+service's Swagger UI and health endpoint. As noted in section 1, the
+"Client" card probes port 8000, which has no service behind it on this
+branch since the old Python Client was removed.
+
+The same file also defines `run_pipeline_test()`, a synchronous smoke test
+that checks Client health -> Engine health -> POSTs a minimal (deliberately
+invalid, imageBase64: "test") payload to the API's own `/analyze` and
+records whether it got back a 200. It is not wired to any FastAPI route in
+API_main.py — it exists as a standalone helper, presumably for manual/CLI
+use, not something a user or the dashboard page currently triggers.
+
+
+--------------------------------------------------------------------------------
+6. SHARED DATA CONTRACTS (root models.py)
+--------------------------------------------------------------------------------
+
+All three Python services import the same root-level models.py, so
+Client<->API and API<->Engine share field names and types by construction
+(modulo the filename bug in 5.3). The React client keeps a hand-written
+TypeScript mirror (React_Client/src/types/models.ts) that is NOT generated
+from these — it must be updated manually if models.py changes.
+
+  Point            { x: float, y: float }
+  Polygon           { points: Point[] }
+  ImageInfo          { width: int, height: int }
+  MatchInfo           { part: str, score: float, coveragePercent: float|None }
+  Detection            { id: str, type: str ("part"|"damage"), label: str,
+                        confidence: float, polygon: Polygon,
+                        matches: MatchInfo[] | None }
+
+  ClientAnalyzeRequest  { requestId, FileName?, imageBase64, mode }
+  ClientAnalyzeResponse { requestId, FileName?, status, mode, image?,
+                        detections: Detection[], message? }
+  EngineAnalyzeRequest   { requestId, FileName?, imageBase64, mode }
+  EngineAnalyzeResponse  { requestId, FileName?, status, mode, image?,
+                        detections: Detection[], message? }
+
+  (Client* and Engine* request/response pairs are structurally identical —
+  they're kept as separate Pydantic classes purely to let the two hops
+  evolve independently later, even though today they're the same shape.)
+
+  HealthResponse        { status }
+  EngineHealthResponse    { status, engineReady, carPartsModelReady,
+                          damageModelReady, message? }
+
+  `mode` is always one of: "car_parts_only" | "damage_only" | "combined"
+  (enforced only by convention/string matching in Engine_methods.process(),
+  not by a Pydantic Enum — an unrecognized mode raises
+  ValueError(f"Unsupported mode: {mode}") which Engine_methods.process()
+  catches and turns into a status: "error" response rather than an HTTP
+  500).
+
+
+--------------------------------------------------------------------------------
+7. CONFIGURATION REFERENCE
+--------------------------------------------------------------------------------
+
+  Engine/EngineConfig.py
+    DEVICE                            = "cpu"  (currently unused directly —
+                                         each model service independently
+                                         checks torch.cuda.is_available())
+    MAX_DETECTIONS                     = 20
+    CAR_PARTS_MODEL_DIR                 = Engine/artifacts/car_parts/car_parts_M2F_model
+    CAR_PARTS_MODEL_PREFERRED_DEVICE     = "cuda" (falls back to cpu)
+    DAMAGE_MODEL_PATH                    = Engine/artifacts/damages/damage_YOLO_model.pt
+    DAMAGE_MODEL_PREFERRED_DEVICE         = "cuda" (falls back to cpu)
+    DAMAGE_MODEL_CONFIDENCE                = 0.5
+    DAMAGE_MODEL_IMGSZ                      = 960
+
+  API/APIConfig.py
+    ENGINE_URL         = http://localhost:8001/process
+    ENGINE_HEALTH_URL  = http://localhost:8001/health
+    REQUEST_TIMEOUT     = 60
+    MAX_IMAGE_SIZE       = 10 MB
+    IMAGE_SIZE            = 640  (unused)
+
+  React_Client/config.json
+    apiUrl = http://193.106.55.108:8002   (see 4.6 — not localhost)
+
+  Model provenance (cross-checked against the deployed artifacts, not just
+  the training notebooks, as of this writing):
+    - Car parts: Engine/artifacts/car_parts/car_parts_M2F_model/config.json
+      -> id2label (23 classes) and num_queries=100 match the "Avraham"
+      training notebook's final Stage-5 run exactly; a plain-text note file
+      shipped alongside the weights ("car_parts_M2F_model.txt") confirms
+      "this is avraham's model- sprint1."
+    - Damage: Engine/artifacts/damages/damage_YOLO_model.pt embeds its own
+      train_args -> name="exp3_hsv_tuned", imgsz=960, matching the "Tal"
+      training notebook's final tuned experiment (not the earlier exp1/exp2
+      runs); model.names matches the 6-class damage vocabulary used
+      throughout the Engine and API.
+
+
+--------------------------------------------------------------------------------
+8. RUNNING THE SYSTEM LOCALLY (for reference)
+--------------------------------------------------------------------------------
+
+  Python services (from repo root, with the venv active):
+    uvicorn Engine.Engine_main:app --port 8001 --reload
+    uvicorn API.API_main:app     --port 8002 --reload
+    (the legacy Client service on port 8000 no longer exists on this branch)
+
+  React client (from React_Client/):
+    npm install
+    npm run dev            (Vite dev server, reads config.json via the
+                             runtime-config middleware)
+    npm run build           (tsc + vite build -> dist/)
+
+  A VS Code "Run All Services" compound launch config (per CLAUDE.md) starts
+  the Python services together and opens the API's /services dashboard.
+
+================================================================================
+END OF DOCUMENT
+================================================================================

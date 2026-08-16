@@ -1,6 +1,12 @@
 import type { AnalyzeResponse, Mode } from '../types/models'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8002'
+declare global {
+  interface Window {
+    __APP_CONFIG__?: { apiUrl?: string }
+  }
+}
+
+const API_BASE = window.__APP_CONFIG__?.apiUrl || 'http://localhost:8002'
 const API_URL = `${API_BASE}/analyze`
 
 export async function analyzeImage(file: File, mode: Mode): Promise<AnalyzeResponse> {

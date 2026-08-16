@@ -18,4 +18,8 @@ DAMAGE_MODEL_PATH = ENGINE_BASE_DIR / "artifacts" / "damages" / "damage_YOLO_mod
 
 DAMAGE_MODEL_PREFERRED_DEVICE = "cuda"
 
-DAMAGE_MODEL_CONFIDENCE = 0.25
+DAMAGE_MODEL_CONFIDENCE = 0.5
+
+# Must match the imgsz the deployed .pt was actually trained at (read from its
+# embedded train_args), not whatever a training notebook used for a different run.
+DAMAGE_MODEL_IMGSZ = 960
