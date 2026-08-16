@@ -1,0 +1,13 @@
+TEST_IMAGES_DIR = Path(r"C:\Users\cs513\Desktop\Evaluation\Damages\test_set")
+TEST_LABELS_DIR = Path(r"C:\Users\cs513\Desktop\Evaluation\Damages\test_set")
+
+# ---- Model paths ----
+NOA_MODEL_PATH   = Path(r"C:\Users\cs513\Desktop\CarCal\Engine\artifacts\damages\damage_YOLO_model_NOA.pt")
+TAL_MODEL_PATH   = Path(r"C:\Users\cs513\Desktop\CarCal\Engine\artifacts\damages\damage_YOLO_model_TAL.pt")
+HAREL_MODEL_PATH = Path(r"C:\Users\cs513\Desktop\CarCal\Engine\artifacts\damages\damage_YOLO_model_HAREL.pt")
+
+# ---- Output directory ----
+OUTPUT_DIR = Path(r"C:\Users\cs513\Desktop\Evaluation\Damages\Evaluation_results\VISUAL_COMPARISON")
+
+
+CHATGPT_RESULTS_PATH = Path(r"C:\Users\cs513\Desktop\Evaluation\Damages\chatGPT_results_on_test_set.jsonl")
